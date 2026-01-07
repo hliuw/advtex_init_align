@@ -19,13 +19,17 @@ def gen_train_stream(
     save_dir,
     sample_freq,
     sample_freq_for_train=False,
+    use_all_frames=False,  # ← NEW PARAMETER
     use_existed_uvs=False,
-    # not_from_full_stream=False,
     add_noise=False,
     noise_ratio=0.05,
 ):
 
-    if sample_freq_for_train:
+    if use_all_frames:
+        # Use ALL frames - no splitting
+        train_view_idxs = np.arange(n_views).tolist()
+        print(f"\n[ALL FRAMES MODE] Using all {n_views} frames\n")
+    elif sample_freq_for_train:
         train_view_idxs = np.arange(0, n_views, sample_freq).tolist()
     else:
         # NOTE: we sample sparse views for test
@@ -81,6 +85,7 @@ def main(
     save_dir,
     sample_freq_list,
     sample_freq_for_train=False,
+    use_all_frames=False,  # ← NEW PARAMETER
     use_existed_uvs=False,
     add_noise=False,
     noise_ratio=0.05,
@@ -100,7 +105,9 @@ def main(
     scene_id = os.path.basename(os.path.dirname(raw_stream_f))
 
     for sample_freq in tqdm.tqdm(sample_freq_list):
-        if sample_freq_for_train:
+        if use_all_frames:
+            freq_save_dir = os.path.join(save_dir, f"all_frames")
+        elif sample_freq_for_train:
             freq_save_dir = os.path.join(save_dir, f"train_1_{sample_freq}")
         else:
             freq_save_dir = os.path.join(save_dir, f"test_1_{sample_freq}")
@@ -113,6 +120,7 @@ def main(
             freq_save_dir,
             sample_freq,
             sample_freq_for_train=sample_freq_for_train,
+            use_all_frames=use_all_frames,  # ← PASS IT THROUGH
             use_existed_uvs=use_existed_uvs,
             add_noise=add_noise,
             noise_ratio=noise_ratio,
@@ -140,6 +148,10 @@ if __name__ == "__main__":
         "--sample_freq_for_train", type=int, default=0, choices=[0, 1],
     )
     parser.add_argument(
+        "--use_all_frames", type=int, default=0, choices=[0, 1],  # ← NEW ARGUMENT
+        help="Use all frames without any train/test split (ignores sample_freq)",
+    )
+    parser.add_argument(
         "--use_existed_uvs", type=int, default=0, choices=[0, 1],
     )
     parser.add_argument(
@@ -165,9 +177,8 @@ if __name__ == "__main__":
             args.save_dir,
             args.sample_freq_list,
             sample_freq_for_train=bool(args.sample_freq_for_train),
+            use_all_frames=bool(args.use_all_frames),  # ← PASS IT THROUGH
             use_existed_uvs=bool(args.use_existed_uvs),
-            # not_from_full_stream=bool(args.not_from_full_stream),
             add_noise=bool(args.add_noise),
             noise_ratio=args.noise_ratio,
         )
-

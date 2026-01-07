@@ -11,7 +11,7 @@ EXP_DIR=${REPO_DIR}/experiments/uofi
 MRF_BIN=${REPO_DIR}/advtex_init_align/tex_init/tex_init
 
 eval "$(conda shell.bash hook)"
-conda activate advtex_init_align
+conda activate adv_align
 export PYTHONPATH=${REPO_DIR}:$PYTHONPATH
 
 SEED=123
@@ -31,6 +31,8 @@ MTL_ATLAS_SIZE=60
 if [ "${SCENE_ID}" == "scene_06" ]; then
     N_ITERS_MP=1
 elif [ "${SCENE_ID}" == "scene_05" ]; then
+    N_ITERS_MP=1
+elif [ "${SCENE_ID}" == "scene_04" ]; then
     N_ITERS_MP=1
 else
     N_ITERS_MP=10

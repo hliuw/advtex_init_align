@@ -111,7 +111,7 @@ if __name__ == "__main__":
         "--save_dir", type=str, required=True, help="save_directory.",
     )
     parser.add_argument(
-        "--stream_type", type=str, default="apple", choices=["apple"],
+        "--stream_type", type=str, default="apple", choices=["apple", "scannet"],
     )
 
     args = parser.parse_args()

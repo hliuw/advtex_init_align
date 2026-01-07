@@ -306,8 +306,8 @@ def train(args):
                             use_valid_mask=False
                         )
 
-                        patch_shift_row = patch_misalign_offset[0, 0]
-                        patch_shift_col = patch_misalign_offset[0, 1]
+                        patch_shift_row = patch_misalign_offset[0, 0].cpu()
+                        patch_shift_col = patch_misalign_offset[0, 1].cpu()
 
                         # print(
                         #     f"\n index: {src_index}, {from_tar_index}; shift: {patch_shift_row}, {patch_shift_col}; img: {tmp_patch_h}, {tmp_patch_w}\n"

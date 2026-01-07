@@ -10,8 +10,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 # from pytorch3d.io.utils import _open_file, _read_image  # Removed _open_file for PyTorch3D 0.7.8+ compatibility
-# from pytorch3d.io.utils import _read_image  # Removed for PyTorch3D 0.7.8+ compatibility
-from PIL import Image
+from pytorch3d.io.utils import _read_image
 
 
 def make_mesh_texture_atlas(
@@ -496,9 +495,7 @@ def _load_texture_images(
             # Load the texture image.
             path = os.path.join(data_dir, texture_files[material_name])
             if os.path.isfile(path):
-                # Use PIL instead of _read_image for PyTorch3D 0.7.8+ compatibility
-                pil_image = Image.open(path).convert("RGB")
-                image = np.array(pil_image, dtype=np.float32) / 255.0
+                image = _read_image(path, format="RGB") / 255.0
                 image = torch.from_numpy(image)
                 texture_images[material_name] = image
             else:

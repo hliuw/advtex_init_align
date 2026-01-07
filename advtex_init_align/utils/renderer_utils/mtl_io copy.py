@@ -9,9 +9,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
-# from pytorch3d.io.utils import _open_file, _read_image  # Removed _open_file for PyTorch3D 0.7.8+ compatibility
-# from pytorch3d.io.utils import _read_image  # Removed for PyTorch3D 0.7.8+ compatibility
-from PIL import Image
+from pytorch3d.io.utils import _open_file, _read_image
 
 
 def make_mesh_texture_atlas(
@@ -408,43 +406,7 @@ def _parse_mtl(f, device="cpu") -> Tuple[MaterialProperties, TextureFiles]:
     texture_files = {}
     material_name = ""
 
-    # Handle both file paths and file objects - PyTorch3D 0.7.8+ compatibility
-    if isinstance(f, str):
-        with open(f, "r") as f_handle:
-            for line in f_handle:
-                tokens = line.strip().split()
-                if not tokens:
-                    continue
-                if tokens[0] == "newmtl":
-                    material_name = tokens[1]
-                    material_properties[material_name] = {}
-                elif tokens[0] == "map_Kd":
-                    # Diffuse texture map
-                    # Account for the case where filenames might have spaces
-                    filename = line.strip()[7:]
-                    texture_files[material_name] = filename
-                elif tokens[0] == "Kd":
-                    # RGB diffuse reflectivity
-                    kd = np.array(tokens[1:4]).astype(np.float32)
-                    kd = torch.from_numpy(kd).to(device)
-                    material_properties[material_name]["diffuse_color"] = kd
-                elif tokens[0] == "Ka":
-                    # RGB ambient reflectivity
-                    ka = np.array(tokens[1:4]).astype(np.float32)
-                    ka = torch.from_numpy(ka).to(device)
-                    material_properties[material_name]["ambient_color"] = ka
-                elif tokens[0] == "Ks":
-                    # RGB specular reflectivity
-                    ks = np.array(tokens[1:4]).astype(np.float32)
-                    ks = torch.from_numpy(ks).to(device)
-                    material_properties[material_name]["specular_color"] = ks
-                elif tokens[0] == "Ns":
-                    # Specular exponent
-                    ns = np.array(tokens[1:4]).astype(np.float32)
-                    ns = torch.from_numpy(ns).to(device)
-                    material_properties[material_name]["shininess"] = ns
-    else:
-        # f is already a file object
+    with _open_file(f, "r") as f:
         for line in f:
             tokens = line.strip().split()
             if not tokens:
@@ -496,9 +458,7 @@ def _load_texture_images(
             # Load the texture image.
             path = os.path.join(data_dir, texture_files[material_name])
             if os.path.isfile(path):
-                # Use PIL instead of _read_image for PyTorch3D 0.7.8+ compatibility
-                pil_image = Image.open(path).convert("RGB")
-                image = np.array(pil_image, dtype=np.float32) / 255.0
+                image = _read_image(path, format="RGB") / 255.0
                 image = torch.from_numpy(image)
                 texture_images[material_name] = image
             else:

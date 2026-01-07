@@ -7,7 +7,6 @@ import shutil
 import argparse
 import numpy as np
 from PIL import Image
-import cv2
 
 import torch
 
@@ -31,53 +30,6 @@ TEXTURE_ATLAS_SIZE = 45
 RENDER_BATCHSIZE = 1
 
 EPS = 1e-4
-
-
-def fill_texture_holes(mtl_imgs, mtl_masks, inpaint_radius=3):
-    """
-    Fill holes in texture atlas using inpainting.
-    
-    Args:
-        mtl_imgs: [N, H, W, 3] uint8 numpy array - the texture images with holes
-        mtl_masks: [N, H, W, 3] uint8 numpy array - mask where white (255) = filled, black (0) = hole
-        inpaint_radius: radius for inpainting algorithm
-    
-    Returns:
-        filled_mtl_imgs: [N, H, W, 3] uint8 numpy array - texture images with holes filled
-    """
-    filled_imgs = []
-    
-    print(f"\nFilling texture holes via inpainting (radius={inpaint_radius})...")
-    
-    for i in tqdm.tqdm(range(mtl_imgs.shape[0]), desc="Inpainting textures"):
-        img = mtl_imgs[i]
-        
-        # Convert mask to single channel (any channel > 0 means filled)
-        # We use max across channels to get the most conservative mask
-        mask_single = np.max(mtl_masks[i], axis=2)
-        
-        # Invert mask: 255 = hole (to be filled), 0 = already filled
-        hole_mask = (mask_single == 0).astype(np.uint8) * 255
-        
-        # Dilate the hole mask slightly to ensure we catch edge pixels
-        # This helps avoid seam artifacts
-        kernel = np.ones((3, 3), np.uint8)
-        hole_mask = cv2.dilate(hole_mask, kernel, iterations=1)
-        
-        # Inpaint to fill holes
-        if np.sum(hole_mask > 0) > 0:  # Only inpaint if there are holes
-            # cv2.INPAINT_TELEA is fast and good for texture
-            # cv2.INPAINT_NS is slower but sometimes better quality
-            filled = cv2.inpaint(img, hole_mask, inpaintRadius=inpaint_radius, flags=cv2.INPAINT_TELEA)
-        else:
-            filled = img.copy()
-            
-        filled_imgs.append(filled)
-    
-    result = np.stack(filled_imgs, axis=0)
-    print(f"Inpainting complete. Processed {len(filled_imgs)} texture images.\n")
-    
-    return result
 
 
 def compute_splatting_weight(val, val_ceil, val_floor, round_type):
@@ -440,7 +392,6 @@ def gen_avg_mtl_one_scene(
     directly_fuse=False,
     scannet_data_dir=None,
     debug_vis=True,
-    inpaint_radius=3,
 ):
 
     tar_obj_f = os.path.join(save_dir, OBJ_FILENAME)
@@ -480,13 +431,6 @@ def gen_avg_mtl_one_scene(
             flag_update_mtl=True,
             stream_type=stream_type,
         )
-
-        # **ADDED: Fill texture holes via inpainting**
-        # print("\n" + "="*60)
-        # print("APPLYING TEXTURE HOLE FILLING")
-        # print("="*60)
-        # avg_mtl_imgs = fill_texture_holes(avg_mtl_imgs, mtl_mask_imgs, inpaint_radius=inpaint_radius)
-        # print("="*60 + "\n")
 
         for i in range(avg_mtl_imgs.shape[0]):
 
@@ -564,10 +508,6 @@ def main():
     parser.add_argument(
         "--scannet_data_dir", type=str, default=None,
     )
-    parser.add_argument(
-        "--inpaint_radius", type=int, default=3,
-        help="Radius for texture hole inpainting (default: 3). Larger values fill bigger holes but may blur details.",
-    )
 
     args = parser.parse_args()
 
@@ -602,7 +542,6 @@ def main():
             directly_fuse=bool(args.directly_fuse),
             scannet_data_dir=args.scannet_data_dir,
             debug_vis=bool(args.debug_vis),
-            inpaint_radius=args.inpaint_radius,
         )
 
 
