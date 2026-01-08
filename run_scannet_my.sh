@@ -5,7 +5,8 @@ REPO_DIR="$1"
 SCENE_ID="$2"
 RUN_TRAIN="$3"
 
-source /home/hongyi/anaconda3/etc/profile.d/conda.sh
+#source /home/hongyi/anaconda3/etc/profile.d/conda.sh
+source /home/hliu/miniforge3/etc/profile.d/conda.sh
 source ${REPO_DIR}/setup.sh
 
 #PYTHONPATH=/home/hongyi/anaconda3/envs/adv_align/bin/python
@@ -23,7 +24,7 @@ DEPTH_PENALTY=-10
 PERCEPT_PENALTY=-1
 DUMMY_PENALTY=-15
 
-DATA_DIR=/mnt/d/code/adobe.in
+DATA_DIR=/mnt/c/code/adobe.in
 EXP_DIR=${REPO_DIR}/experiments
 
 MRF_BIN=${REPO_DIR}/advtex_init_align/tex_init/tex_init
