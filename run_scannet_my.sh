@@ -37,7 +37,7 @@ N_SUBDIV=1
 
 N_MESH_SPLITS=5
 
-MTL_RES=512
+MTL_RES=256
 
 if [ "${UNARY}" == "1" ]; then
     MRF_NAME="unary"  
@@ -65,23 +65,23 @@ SAMPLE_FREQS=(10)
 printf '\nall freqs %s\n' "${SAMPLE_FREQS[@]}"
 
 # generate L2 averaged texture
-# printf "\nstart generating L2 averaged texture ...\n"
+printf "\nstart generating L2 averaged texture ...\n"
 
-# python ${REPO_DIR}/advtex_init_align/data/gen_avg_mtl.py \
-# --stream_f_list ${EXP_DIR}/${SCENE_ID}/all_frames/Recv.stream \
-# --obj_f_list ${EXP_DIR}/${SCENE_ID}/all_frames/splitted_mesh_${N_MESH_SPLITS}/${MRF_DIR_NAME}/TexAlign.obj \
-# --save_dir ${EXP_DIR}/${SCENE_ID}/all_frames/avg_${MTL_RES}_${MTL_RES}_atlas_${MTL_ATLAS_SIZE} \
-# --atlas_size ${MTL_ATLAS_SIZE} \
-# --debug_vis 0 \
-# --fuse 1 \
-# --directly_fuse 0 \
-# --stream_type scannet \
-# --scannet_data_dir ${EXP_DIR}/${SCENE_ID}/all_frames/prepare/data
+python ${REPO_DIR}/advtex_init_align/data/gen_avg_mtl.py \
+--stream_f_list ${EXP_DIR}/${SCENE_ID}/all_frames/Recv.stream \
+--obj_f_list ${EXP_DIR}/${SCENE_ID}/all_frames/splitted_mesh_${N_MESH_SPLITS}/${MRF_DIR_NAME}/TexAlign.obj \
+--save_dir ${EXP_DIR}/${SCENE_ID}/all_frames/avg_${MTL_RES}_${MTL_RES}_atlas_${MTL_ATLAS_SIZE} \
+--atlas_size ${MTL_ATLAS_SIZE} \
+--debug_vis 0 \
+--fuse 1 \
+--directly_fuse 0 \
+--stream_type scannet \
+--scannet_data_dir ${EXP_DIR}/${SCENE_ID}/all_frames/prepare/data
 
-# printf "\n... done generating L2 averaged texture\n"
+printf "\n... done generating L2 averaged texture\n"
 
-# printf "\nExiting early for debug.\n"
-# exit 0
+printf "\nExiting early for debug.\n"
+exit 0
 
 for sample_freq in "${SAMPLE_FREQS[@]}";
 do

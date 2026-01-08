@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import tqdm
 import copy
@@ -10,6 +11,10 @@ from PIL import Image
 import cv2
 
 import torch
+
+# Add path to hole_filling module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../test_hole_filling'))
+from hole_filling import conditional_smooth_optimized
 
 from advtex_init_align.utils.stream_utils import StreamReader
 from advtex_init_align.utils.io_utils import load_mtl_imgs, load_mtl_imgs_vectorize
@@ -31,54 +36,6 @@ TEXTURE_ATLAS_SIZE = 45
 RENDER_BATCHSIZE = 1
 
 EPS = 1e-4
-
-
-def fill_texture_holes(mtl_imgs, mtl_masks, inpaint_radius=3):
-    """
-    Fill holes in texture atlas using inpainting.
-    
-    Args:
-        mtl_imgs: [N, H, W, 3] uint8 numpy array - the texture images with holes
-        mtl_masks: [N, H, W, 3] uint8 numpy array - mask where white (255) = filled, black (0) = hole
-        inpaint_radius: radius for inpainting algorithm
-    
-    Returns:
-        filled_mtl_imgs: [N, H, W, 3] uint8 numpy array - texture images with holes filled
-    """
-    filled_imgs = []
-    
-    print(f"\nFilling texture holes via inpainting (radius={inpaint_radius})...")
-    
-    for i in tqdm.tqdm(range(mtl_imgs.shape[0]), desc="Inpainting textures"):
-        img = mtl_imgs[i]
-        
-        # Convert mask to single channel (any channel > 0 means filled)
-        # We use max across channels to get the most conservative mask
-        mask_single = np.max(mtl_masks[i], axis=2)
-        
-        # Invert mask: 255 = hole (to be filled), 0 = already filled
-        hole_mask = (mask_single == 0).astype(np.uint8) * 255
-        
-        # Dilate the hole mask slightly to ensure we catch edge pixels
-        # This helps avoid seam artifacts
-        kernel = np.ones((3, 3), np.uint8)
-        hole_mask = cv2.dilate(hole_mask, kernel, iterations=1)
-        
-        # Inpaint to fill holes
-        if np.sum(hole_mask > 0) > 0:  # Only inpaint if there are holes
-            # cv2.INPAINT_TELEA is fast and good for texture
-            # cv2.INPAINT_NS is slower but sometimes better quality
-            filled = cv2.inpaint(img, hole_mask, inpaintRadius=inpaint_radius, flags=cv2.INPAINT_TELEA)
-        else:
-            filled = img.copy()
-            
-        filled_imgs.append(filled)
-    
-    result = np.stack(filled_imgs, axis=0)
-    print(f"Inpainting complete. Processed {len(filled_imgs)} texture images.\n")
-    
-    return result
-
 
 def compute_splatting_weight(val, val_ceil, val_floor, round_type):
     assert val.ndim == 1, f"{val.shape}"
@@ -427,6 +384,44 @@ def gen_avg_mtl(
     return avg_mtl_imgs, mtl_mask_imgs, render_list, raw_mtl_fnames
 
 
+def fill_texture_holes_smoothing(avg_mtl_imgs, mtl_mask_imgs, num_iterations=1):
+    """
+    Fill holes in texture images using conditional smoothing.
+    
+    Args:
+        avg_mtl_imgs: numpy array of shape (N, H, W, 3) with texture images
+        mtl_mask_imgs: numpy array of shape (N, H, W, 3) with mask images (255 = valid, 0 = hole)
+        num_iterations: number of smoothing iterations to apply
+        
+    Returns:
+        filled_mtl_imgs: texture images with holes filled
+    """
+    filled_mtl_imgs = avg_mtl_imgs.copy()
+    
+    print(f"\nApplying conditional smoothing hole filling ({num_iterations} iterations)...")
+    
+    for i in tqdm.tqdm(range(avg_mtl_imgs.shape[0]), desc="Processing texture maps"):
+        texture = filled_mtl_imgs[i, ...].copy()
+        mask = mtl_mask_imgs[i, ..., 0]  # Use first channel of mask
+        
+        # Identify holes (where mask is 0)
+        holes = (mask == 0)
+        
+        if np.any(holes):
+            # Apply conditional smoothing iteratively
+            for iteration in range(num_iterations):
+                texture = conditional_smooth_optimized(texture.astype(np.float32))
+            
+            filled_mtl_imgs[i, ...] = texture.astype(np.uint8)
+            
+            num_hole_pixels = np.sum(holes)
+            print(f"  Texture {i}: Filled {num_hole_pixels} hole pixels")
+        else:
+            print(f"  Texture {i}: No holes detected")
+    
+    return filled_mtl_imgs
+
+
 def gen_avg_mtl_one_scene(
     scene_id,
     stream_f,
@@ -441,6 +436,8 @@ def gen_avg_mtl_one_scene(
     scannet_data_dir=None,
     debug_vis=True,
     inpaint_radius=3,
+    use_smoothing=True,
+    smoothing_iterations=1,
 ):
 
     tar_obj_f = os.path.join(save_dir, OBJ_FILENAME)
@@ -481,12 +478,17 @@ def gen_avg_mtl_one_scene(
             stream_type=stream_type,
         )
 
-        # **ADDED: Fill texture holes via inpainting**
-        # print("\n" + "="*60)
-        # print("APPLYING TEXTURE HOLE FILLING")
-        # print("="*60)
-        # avg_mtl_imgs = fill_texture_holes(avg_mtl_imgs, mtl_mask_imgs, inpaint_radius=inpaint_radius)
-        # print("="*60 + "\n")
+        # Apply hole filling using conditional smoothing
+        if use_smoothing:
+            print("\n" + "="*60)
+            print("APPLYING CONDITIONAL SMOOTHING HOLE FILLING")
+            print("="*60)
+            avg_mtl_imgs = fill_texture_holes_smoothing(
+                avg_mtl_imgs, 
+                mtl_mask_imgs, 
+                num_iterations=smoothing_iterations
+            )
+            print("="*60 + "\n")
 
         for i in range(avg_mtl_imgs.shape[0]):
 
@@ -568,6 +570,14 @@ def main():
         "--inpaint_radius", type=int, default=3,
         help="Radius for texture hole inpainting (default: 3). Larger values fill bigger holes but may blur details.",
     )
+    parser.add_argument(
+        "--use_smoothing", type=int, default=0,
+        help="Use conditional smoothing for hole filling (1=yes, 0=no, default: 0)",
+    )
+    parser.add_argument(
+        "--smoothing_iterations", type=int, default=1,
+        help="Number of smoothing iterations for hole filling (default: 1)",
+    )
 
     args = parser.parse_args()
 
@@ -603,6 +613,8 @@ def main():
             scannet_data_dir=args.scannet_data_dir,
             debug_vis=bool(args.debug_vis),
             inpaint_radius=args.inpaint_radius,
+            use_smoothing=bool(args.use_smoothing),
+            smoothing_iterations=args.smoothing_iterations,
         )
 
 
