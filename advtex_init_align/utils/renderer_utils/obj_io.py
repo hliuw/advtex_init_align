@@ -9,7 +9,8 @@ from typing import List, Optional
 import numpy as np
 
 import torch
-from pytorch3d.io.utils import _check_faces_indices, _make_tensor, _open_file
+from pytorch3d.io.utils import _check_faces_indices, _make_tensor
+# _open_file removed in PyTorch3D 0.7.8+, using standard open() instead
 from pytorch3d.renderer import TexturesAtlas, TexturesUV
 from pytorch3d.structures import Meshes, join_meshes_as_batch
 
@@ -242,7 +243,21 @@ def load_obj(
         # pyre-fixme[6]: Expected `_PathLike[Variable[typing.AnyStr <: [str,
         #  bytes]]]` for 1st param but got `Union[_PathLike[typing.Any], bytes, str]`.
         data_dir = os.path.dirname(f)
-    with _open_file(f, "r") as f:
+    
+    # Handle both file paths and file objects - PyTorch3D 0.7.8+ compatibility
+    if isinstance(f, str):
+        with open(f, "r") as f_handle:
+            return _load_obj(
+                f_handle,
+                data_dir,
+                load_textures=load_textures,
+                create_texture_atlas=create_texture_atlas,
+                texture_atlas_size=texture_atlas_size,
+                texture_wrap=texture_wrap,
+                device=device,
+            )
+    else:
+        # f is already a file object
         return _load_obj(
             f,
             data_dir,
@@ -644,7 +659,12 @@ def save_obj(f, verts, faces, decimal_places: Optional[int] = None):
         message = "Argument 'faces' should either be empty or of shape (num_faces, 3)."
         raise ValueError(message)
 
-    with _open_file(f, "w") as f:
+    # Handle both file paths and file objects - PyTorch3D 0.7.8+ compatibility
+    if isinstance(f, str):
+        with open(f, "w") as f_handle:
+            return _save(f_handle, verts, faces, decimal_places)
+    else:
+        # f is already a file object
         return _save(f, verts, faces, decimal_places)
 
 
