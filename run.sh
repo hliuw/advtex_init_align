@@ -55,7 +55,7 @@ elif [ "${SCENE_ID}" == "scene_01" ]; then
 elif [ "${SCENE_ID}" == "scene_10" ]; then
     MTL_RES=2048
 else
-    MTL_RES=1024
+    MTL_RES=512
 fi
 
 if [ "${UNARY}" == "1" ]; then
