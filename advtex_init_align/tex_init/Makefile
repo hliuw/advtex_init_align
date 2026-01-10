@@ -5,9 +5,9 @@ else
 OFLAGS=-O3 -fopenmp
 endif
 
-THIRDPARTY_DIR=/absolute/path/to/third_parties/folder
+THIRDPARTY_DIR=/home/hliu/advtex_init_align/third_parties # this need to be full path, why?
 # e.g., CUDA_ROOT=/usr/local/cuda-11.1
-CUDA_ROOT=/path/to/cuda/root
+CUDA_ROOT=/usr/local/cuda-11.8
 
 CXXFLAGS=-DWHICH_FUNC=1 -pthread -std=c++14 -DCGAL_EIGEN3_ENABLED -DWHICH_FUNC=1 \
 		 -I. -I./mesh/include -I./project/include -I./linear-algebra/include -I./deps -I./deps/rectangle-bin-pack/include \
